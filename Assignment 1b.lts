@@ -2,26 +2,24 @@
 const N_Nurses = 3
 const N_Orderlies = 8
 const N_Transfer_Orderlies = 3
+range Nurse_Range = 0..N_Nurses-1
 
 // Producer gets new patient. 
 PRODUCER = (
-	getNewPatient -> PRODUCER
+	get_new_patient -> PRODUCER
 ).
 
 // Consumer discharges patient
 CONSUMER = (
-	dischargePatient -> CONSUMER
+	discharge_patient -> CONSUMER
 ).
 
-NURSE = (assignPatient -> checkUp -> dischargePatient -> NURSE).
+NURSE = (assign_patient -> check_up -> discharge_patient -> NURSE).
 
 PATIENT = PATIENT[0],
 PATIENT[i:0..N_Nurses] = (
-	when (i < N_Nurses) getNewPatient -> PATIENT[i+1] | 
-	when (i > 0) dischargePatient -> PATIENT[i-1]
+	when (i < N_Nurses) get_new_patient -> PATIENT[i+1] | 
+	when (i > 0) discharge_patient -> PATIENT[i-1]
 ).
 
-||HOSPITAL = (PRODUCER || CONSUMER || NURSE || PATIENT).
-//{[i:0..N_Nurses-1]}:NURSE
-
-||HOSPITALS = (forall [i:1..N_Nurses] n[i]:NURSES/{getNewPatient/assignPatient} || n[i]:PRODUCER || n[i]:CONSUMER || n[i]:PATIENT).
+||HOSPITAL = ({a[n:Nurse_Range]}::PRODUCER || {a[n:Nurse_Range]}::CONSUMER || {a[n:Nurse_Range]}:(NURSE/{get_new_patient/assign_patient}) || {a[n:Nurse_Range]}::PATIENT).
