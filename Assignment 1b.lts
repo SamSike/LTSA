@@ -4,22 +4,65 @@ const N_Orderlies = 8
 const N_Transfer_Orderlies = 3
 range Nurse_Range = 0..N_Nurses-1
 
+// ----- Process of Patient Entry and Departure from Hospital -----
 // Producer gets new patient. 
 PRODUCER = (
 	get_new_patient -> PRODUCER
 ).
 
-// Consumer discharges patient
+// Consumer discharges patient that has been treated/confirmed non-severe
 CONSUMER = (
 	discharge_patient -> CONSUMER
 ).
 
-NURSE = (assign_patient -> check_up -> discharge_patient -> NURSE).
-
-PATIENT = PATIENT[0],
-PATIENT[i:0..N_Nurses] = (
-	when (i < N_Nurses) get_new_patient -> PATIENT[i+1] | 
-	when (i > 0) discharge_patient -> PATIENT[i-1]
+// Maximum Number of Patients is Number of Nurses + 1.
+PATIENT_COUNT = PATIENT_COUNT[0],
+PATIENT_COUNT[i:0..N_Nurses+1] = (
+	when (i <= N_Nurses) get_new_patient -> PATIENT_COUNT[i+1] | 
+	when (i > 0) discharge_patient -> PATIENT_COUNT[i-1]
 ).
 
-||HOSPITAL = ({a[n:Nurse_Range]}::PRODUCER || {a[n:Nurse_Range]}::CONSUMER || {a[n:Nurse_Range]}:(NURSE/{get_new_patient/assign_patient}) || {a[n:Nurse_Range]}::PATIENT).
+||PATIENTS_ENTRY_DEPARTURE = (PRODUCER || CONSUMER || PATIENT_COUNT).
+
+// ----- Rooms In Hospital and their processes -----
+// Patient arrives at ED or is discharged from ED.
+FOYER_ARRIVAL = (arrive_at_ED -> assign_patient -> discharge_new_patient_foyer -> FOYER_ARRIVAL).
+FOYER_DEPARTURE = (admit_patient_foyer -> depart_from_ED -> FOYER_DEPARTURE).
+||FOYER = (FOYER_ARRIVAL || FOYER_DEPARTURE).
+
+// Patient is checked up at Triage
+TRIAGE = (admit_patient_triage -> check_up -> discharge_patient_triage -> TRIAGE).
+
+// Patient is treated at Treatment
+TREATMENT = (admit_patient_treatment -> treat -> discharge_patient_treatment -> TREATMENT).
+
+||HOSPITAL_ROOMS = (
+	(FOYER/{get_new_patient/arrive_at_ED, discharge_patient/depart_from_ED}) 
+	|| TRIAGE || TREATMENT
+).
+
+// All possible nurse duties
+NURSE = ASSIGN_PATIENT,
+ASSIGN_PATIENT = (assign_patient -> MOVE_FOYER_TO_TRIAGE),
+MOVE_FOYER_TO_TRIAGE = (recruit_orderlies -> discharge_new_patient_foyer -> admit_patient_triage -> release_orderlies -> CHECK_UP),
+CHECK_UP = (check_up -> MOVE_TRIAGE_TO_FOYER | check_up -> MOVE_TRIAGE_TO_TREATMENT),
+MOVE_TRIAGE_TO_TREATMENT = (recruit_orderlies -> discharge_patient_triage -> admit_patient_treatment -> release_orderlies -> TREAT),
+TREAT = (treat -> MOVE_TREATMENT_TO_FOYER),
+MOVE_TREATMENT_TO_FOYER = (recruit_orderlies -> discharge_patient_treatment -> admit_patient_foyer -> release_orderlies -> NURSE),
+MOVE_TRIAGE_TO_FOYER = (recruit_orderlies -> discharge_patient_triage -> admit_patient_foyer -> release_orderlies -> NURSE).
+
+ORDERLIES = ORDERLIES[0],
+ORDERLIES[i:0..N_Orderlies] = (
+	when (i + N_Transfer_Orderlies < N_Orderlies) recruit_orderlies -> ORDERLIES[i + N_Transfer_Orderlies] |
+	when (i >= N_Transfer_Orderlies) release_orderlies -> ORDERLIES[i - N_Transfer_Orderlies]
+).
+
+||HOSPITAL = ({nurse[n:Nurse_Range]}::PATIENTS_ENTRY_DEPARTURE
+		|| {nurse[n:Nurse_Range]}::ORDERLIES
+		|| {nurse[n:Nurse_Range]}::HOSPITAL_ROOMS
+		
+		|| {nurse[n:Nurse_Range]}:NURSE
+).
+
+// arrive_at_ED and get_new_patient
+// depart_from_ED and discharge_patient
