@@ -1,0 +1,27 @@
+Name: Sameer Sikka
+ID: 1169800
+
+Q.1.
+In my original LTSA model, the main issue I faced was that I wanted the 
+get_new_patient method to be independant of any nurses. I could make it so that
+nurse.0.get_new_patient would occur, and then any nurse could assign themselves
+to that patient, but it did not seem right to me. 
+I tried merging all the processes by renaming all nurse[n].get_new_patient processes
+to get_new_patient, but that allowed all nurses to independantly assign themselves 
+to a patient, even though there was only one. 
+I then tried removing the extras and renaming just nurse.0.get_new_patient to 
+get_new_patient, but even though the processes were not shown as executable, 
+the model was using them as tau in the Safety and Liveness checks.
+It was thanks to an ED post/comment that I realised I could split one process 
+into 3 names. Without it, I don't think I could finish this assignment on time,
+or even figure it out.
+
+The actual problem with the original model is that it can deadlock due to attempting
+to move patients into occupied rooms. This eventually leads to running out of usable 
+Orderlies, which ends up in a situation wherein multiple patients are waiting to 
+enter a room, but that room can not be freed due to no orderlies being available
+to move the patient to the next room.
+
+Q.2.
+I have identified the deadlock pattern and resolved it in the modified model. My 
+first instinct was to use 

@@ -1,0 +1,150 @@
+// First, declare constants
+	const N_Nurses = 3
+	const N_Patients = N_Nurses + 1
+	const N_Orderlies = 8
+	const N_Transfer_Orderlies = 3
+	range Nurse_Range = 0..N_Nurses-1
+	range Patient_Range = 0..N_Patients
+	range Bool = 0..1
+
+// ----- Process of Patient Entry and Departure from Hospital -----
+	// Producer gets new patient. 
+		PRODUCER = (
+			get_new_patient -> PRODUCER
+		).
+
+	// Consumer discharges patient that has been treated/confirmed non-severe
+		CONSUMER = (
+			discharge_patient -> CONSUMER
+		).
+
+	// Maximum Number of Patients is Number of Nurses + 1.
+		PATIENT_COUNT = PATIENT_COUNT[0],
+		PATIENT_COUNT[i:Patient_Range] = (
+			when (i < N_Patients) get_new_patient -> PATIENT_COUNT[i+1] | 
+			when (i > 0) discharge_patient -> PATIENT_COUNT[i-1]
+		).
+
+	||PATIENTS_ENTRY_DEPARTURE = (PRODUCER || CONSUMER || PATIENT_COUNT).
+
+// ----- Rooms In Hospital and their processes -----
+	// Patient arrives at ED or is discharged from ED.
+		FOYER_ARRIVAL_OCCUPIED = FOYER_ARRIVAL_OCCUPIED[0],
+		FOYER_ARRIVAL_OCCUPIED[i:Bool] = (
+			when (i < 1) arrive_at_ED -> FOYER_ARRIVAL_OCCUPIED[i+1] |
+			when (i > 0) discharge_new_patient_foyer -> FOYER_ARRIVAL_OCCUPIED[i-1]
+		).
+
+		FOYER_ARRIVAL = (arrive_at_ED -> assign_patient -> discharge_new_patient_foyer -> FOYER_ARRIVAL).
+
+		FOYER_DEPARTURE_OCCUPIED = FOYER_DEPARTURE_OCCUPIED[0],
+		FOYER_DEPARTURE_OCCUPIED[i:Bool] = (
+			when (i < 1) admit_patient_foyer -> FOYER_DEPARTURE_OCCUPIED[i+1] |
+			when (i > 0) depart_from_ED -> FOYER_DEPARTURE_OCCUPIED[i-1]
+		).
+
+		FOYER_DEPARTURE = (apply_for_foyer_transfer -> admit_patient_foyer -> depart_from_ED -> FOYER_DEPARTURE).
+
+		||FOYER = (FOYER_ARRIVAL || FOYER_DEPARTURE || FOYER_ARRIVAL_OCCUPIED || FOYER_DEPARTURE_OCCUPIED).
+
+	// Patient is checked up at Triage
+		TRIAGE_OCCUPIED = TRIAGE_OCCUPIED[0],
+		TRIAGE_OCCUPIED[i:Bool] = (
+			when (i < 1) admit_patient_triage -> TRIAGE_OCCUPIED[i+1] |
+			when (i > 0) discharge_patient_triage -> TRIAGE_OCCUPIED[i-1]
+		).
+
+		TRIAGE = (apply_for_triage_transfer -> admit_patient_triage -> check_up -> discharge_patient_triage -> TRIAGE).
+
+	// Patient is treated at Treatment
+		TREATMENT_OCCUPIED = TREATMENT_OCCUPIED[0],
+		TREATMENT_OCCUPIED[i:Bool] = (
+			when (i < 1) admit_patient_treatment -> TREATMENT_OCCUPIED[i+1] |
+			when (i > 0) discharge_patient_treatment -> TREATMENT_OCCUPIED[i-1]
+		).
+		TREATMENT = (apply_for_treatment_transfer -> admit_patient_treatment -> treat -> discharge_patient_treatment -> TREATMENT).
+
+	||HOSPITAL_ROOMS = (
+		(FOYER/{get_new_patient/arrive_at_ED, discharge_patient/depart_from_ED, 
+		nurse[n:Nurse_Range].assign_patient/assign_patient, nurse[n:Nurse_Range].discharge_new_patient_foyer/discharge_new_patient_foyer,
+		nurse[n:Nurse_Range].admit_patient_foyer/admit_patient_foyer, nurse[n:Nurse_Range].apply_for_foyer_transfer/apply_for_foyer_transfer}) 
+		|| {nurse[n:Nurse_Range]}::TRIAGE || {nurse[n:Nurse_Range]}::TREATMENT
+	).
+
+// ----- Hospital Staff and their duties -----
+	// All possible nurse duties
+		NURSE = ASSIGN_PATIENT,
+		ASSIGN_PATIENT = (assign_patient -> MOVE_FOYER_TO_TRIAGE),
+		MOVE_FOYER_TO_TRIAGE = (apply_for_triage_transfer -> recruit_orderlies -> discharge_new_patient_foyer -> admit_patient_triage -> release_orderlies -> CHECK_UP),
+		CHECK_UP = (check_up -> MOVE_TRIAGE_TO_FOYER | check_up -> MOVE_TRIAGE_TO_TREATMENT),
+		MOVE_TRIAGE_TO_TREATMENT = (apply_for_treatment_transfer -> recruit_orderlies -> discharge_patient_triage -> admit_patient_treatment -> release_orderlies -> TREAT),
+		TREAT = (treat -> MOVE_TREATMENT_TO_FOYER),
+		MOVE_TREATMENT_TO_FOYER = (apply_for_foyer_transfer -> recruit_orderlies -> discharge_patient_treatment -> admit_patient_foyer -> release_orderlies -> NURSE),
+		MOVE_TRIAGE_TO_FOYER = (apply_for_foyer_transfer -> recruit_orderlies -> discharge_patient_triage -> admit_patient_foyer -> release_orderlies -> NURSE).
+
+	// Limited number of Orderlies can be recruited and released as required
+		ORDERLIES = ORDERLIES[0],
+		ORDERLIES[i:0..N_Orderlies] = (
+			when (i + N_Transfer_Orderlies < N_Orderlies) recruit_orderlies -> ORDERLIES[i + N_Transfer_Orderlies] |
+			when (i >= N_Transfer_Orderlies) release_orderlies -> ORDERLIES[i - N_Transfer_Orderlies]
+		).
+
+	// Specialist treats a patient while in treatment room
+		SPECIALIST = (enter_treatment -> treat -> exit_treatment -> SPECIALIST)/{nurse[n:Nurse_Range].treat/treat}.
+
+	||HOSPITAL = ({nurse[n:Nurse_Range]}:NURSE
+			|| {nurse[n:Nurse_Range]}::ORDERLIES
+			|| PATIENTS_ENTRY_DEPARTURE 
+			|| HOSPITAL_ROOMS
+			|| SPECIALIST
+
+			|| PATIENT_LIMIT
+			|| FOYER_ARRIVAL_CHECK
+			|| FOYER_DEPARTURE_CHECK
+			|| TREATMENT_CHECK
+			|| TRIAGE_CHECK
+	).
+
+// ----- Safety Checks -----
+	// Patients should be maximum Nurses+1, and minimum 0
+		property PATIENT_LIMIT = PATIENT_LIMIT[0],
+		PATIENT_LIMIT[i:0..N_Nurses+1] = (
+			when (i <= N_Nurses) get_new_patient -> PATIENT_LIMIT[i+1] | 
+			when (i > 0) discharge_patient -> PATIENT_LIMIT[i-1]
+		).
+
+	// Only one patient in Foyer Arrival at a time
+		FOYER_ARRIVAL_CHECK = FOYER_ARRIVAL_CHECK[0],
+		FOYER_ARRIVAL_CHECK[i:0..1] = (
+			when (i < 1) get_new_patient -> FOYER_ARRIVAL_CHECK[i+1] |
+			when (i > 0) {nurse[n:Nurse_Range]}.discharge_new_patient_foyer -> FOYER_ARRIVAL_CHECK[i-1]
+		).
+
+	// Only one patient in Foyer Departure at a time
+		FOYER_DEPARTURE_CHECK = FOYER_DEPARTURE_CHECK[0],
+		FOYER_DEPARTURE_CHECK[i:0..1] = (
+			when (i < 1) {nurse[n:Nurse_Range]}.admit_patient_foyer -> FOYER_DEPARTURE_CHECK[i+1] |
+			when (i > 0) discharge_patient -> FOYER_DEPARTURE_CHECK[i-1]
+		).
+
+	// Only one patient in Triage at a time
+		TRIAGE_CHECK = TRIAGE_CHECK[0],
+		TRIAGE_CHECK[i:0..1] = (
+			when (i < 1) {nurse[n:Nurse_Range]}.admit_patient_triage -> TRIAGE_CHECK[i+1] |
+			when (i > 0) {nurse[n:Nurse_Range]}.discharge_patient_triage -> TRIAGE_CHECK[i-1]
+		).
+
+	// Only one patient in Treatment at a time
+		TREATMENT_CHECK = TREATMENT_CHECK[0],
+		TREATMENT_CHECK[i:0..1] = (
+			when (i < 1) {nurse[n:Nurse_Range]}.admit_patient_treatment -> TREATMENT_CHECK[i+1] |
+			when (i > 0) {nurse[n:Nurse_Range]}.discharge_patient_treatment -> TREATMENT_CHECK[i-1]
+		).
+
+// ----- Liveness Checks -----
+	// Atleast one patient must be severe, and get treated by specialist.
+		progress SEVERE[n:Nurse_Range] = {nurse[n].treat}
+
+	// Patients should be admitted to ED and eventually discharged. 
+	// (To check if each nurse is assigned a patient eventually is not possible in FSP but they are the same, so should not matter)
+		progress NURSE_ROUNDS = {discharge_patient}
