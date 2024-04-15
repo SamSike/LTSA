@@ -88,13 +88,13 @@
 		).
 
 	// Specialist treats a patient while in treatment room
-		SPECIALIST = (enter_treatment -> treat -> exit_treatment -> SPECIALIST).
+		SPECIALIST = (enter_treatment -> treat -> exit_treatment -> SPECIALIST)/{nurse[n:Nurse_Range].treat/treat}.
 
 	||HOSPITAL = ({nurse[n:Nurse_Range]}:NURSE
 			|| {nurse[n:Nurse_Range]}::ORDERLIES
 			|| PATIENTS_ENTRY_DEPARTURE 
 			|| HOSPITAL_ROOMS
-			|| SPECIALIST/{nurse[n:Nurse_Range].treat/treat}
+			|| SPECIALIST
 
 			|| PATIENT_LIMIT
 			|| FOYER_ARRIVAL_CHECK
