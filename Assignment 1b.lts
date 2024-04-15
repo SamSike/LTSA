@@ -1,8 +1,10 @@
 // First, declare constants
 const N_Nurses = 3
+const N_Patients = N_Nurses + 1
 const N_Orderlies = 8
 const N_Transfer_Orderlies = 3
 range Nurse_Range = 0..N_Nurses-1
+range Patient_Range = 0..N_Patients
 
 // ----- Process of Patient Entry and Departure from Hospital -----
 // Producer gets new patient. 
@@ -17,8 +19,8 @@ CONSUMER = (
 
 // Maximum Number of Patients is Number of Nurses + 1.
 PATIENT_COUNT = PATIENT_COUNT[0],
-PATIENT_COUNT[i:0..N_Nurses+1] = (
-	when (i <= N_Nurses) get_new_patient -> PATIENT_COUNT[i+1] | 
+PATIENT_COUNT[i:Patient_Range] = (
+	when (i < N_Patients) get_new_patient -> PATIENT_COUNT[i+1] | 
 	when (i > 0) discharge_patient -> PATIENT_COUNT[i-1]
 ).
 
@@ -57,12 +59,13 @@ ORDERLIES[i:0..N_Orderlies] = (
 	when (i >= N_Transfer_Orderlies) release_orderlies -> ORDERLIES[i - N_Transfer_Orderlies]
 ).
 
-||HOSPITAL = ({nurse[n:Nurse_Range]}::PATIENTS_ENTRY_DEPARTURE
+SPECIALIST = (enter_treatment -> treat -> exit_treatment -> SPECIALIST).
+
+||PATIENTS_IN_ROOMS = ({nurse[n:Nurse_Range]}::PATIENTS_ENTRY_DEPARTURE || {nurse[n:Nurse_Range]}::HOSPITAL_ROOMS)\
+					{nurse[1..N_Nurses-1].get_new_patient, nurse[1..N_Nurses-1].discharge_patient}.
+
+||HOSPITAL = (PATIENTS_IN_ROOMS/{get_new_patient/nurse[0].get_new_patient, discharge_patient/nurse[0].discharge_patient}
 		|| {nurse[n:Nurse_Range]}::ORDERLIES
-		|| {nurse[n:Nurse_Range]}::HOSPITAL_ROOMS
-		
+		|| forall [n:Nurse_Range] ({nurse[n]}::SPECIALIST)/{enter_treatment/nurse[n].enter_treatment, exit_treatment/nurse[n].exit_treatment}
 		|| {nurse[n:Nurse_Range]}:NURSE
 ).
-
-// arrive_at_ED and get_new_patient
-// depart_from_ED and discharge_patient
