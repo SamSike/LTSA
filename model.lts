@@ -29,37 +29,14 @@
 
 // ----- Rooms In Hospital and their processes -----
 	// Patient arrives at ED or is discharged from ED.
-		FOYER_ARRIVAL_OCCUPIED = FOYER_ARRIVAL_OCCUPIED[0],
-		FOYER_ARRIVAL_OCCUPIED[i:Bool] = (
-			when (i < 1) arrive_at_ED -> FOYER_ARRIVAL_OCCUPIED[i+1] |
-			when (i > 0) discharge_new_patient_foyer -> FOYER_ARRIVAL_OCCUPIED[i-1]
-		).
-
 		FOYER_ARRIVAL = (arrive_at_ED -> assign_patient -> discharge_new_patient_foyer -> FOYER_ARRIVAL).
-
-		FOYER_DEPARTURE_OCCUPIED = FOYER_DEPARTURE_OCCUPIED[0],
-		FOYER_DEPARTURE_OCCUPIED[i:Bool] = (
-			when (i < 1) admit_patient_foyer -> FOYER_DEPARTURE_OCCUPIED[i+1] |
-			when (i > 0) depart_from_ED -> FOYER_DEPARTURE_OCCUPIED[i-1]
-		).
-
 		FOYER_DEPARTURE = (admit_patient_foyer -> depart_from_ED -> FOYER_DEPARTURE).
-		||FOYER = (FOYER_ARRIVAL || FOYER_DEPARTURE || FOYER_ARRIVAL_OCCUPIED || FOYER_DEPARTURE_OCCUPIED).
+		||FOYER = (FOYER_ARRIVAL || FOYER_DEPARTURE).
 
 	// Patient is checked up at Triage
-		TRIAGE_OCCUPIED = TRIAGE_OCCUPIED[0],
-		TRIAGE_OCCUPIED[i:Bool] = (
-			when (i < 1) admit_patient_triage -> TRIAGE_OCCUPIED[i+1] |
-			when (i > 0) discharge_patient_triage -> TRIAGE_OCCUPIED[i-1]
-		).
 		TRIAGE = (admit_patient_triage -> check_up -> discharge_patient_triage -> TRIAGE).
 
 	// Patient is treated at Treatment
-		TREATMENT_OCCUPIED = TREATMENT_OCCUPIED[0],
-		TREATMENT_OCCUPIED[i:Bool] = (
-			when (i < 1) admit_patient_treatment -> TREATMENT_OCCUPIED[i+1] |
-			when (i > 0) discharge_patient_treatment -> TREATMENT_OCCUPIED[i-1]
-		).
 		TREATMENT = (admit_patient_treatment -> treat -> discharge_patient_treatment -> TREATMENT).
 
 	||HOSPITAL_ROOMS = (
