@@ -1,7 +1,6 @@
 Name: Sameer Sikka
 ID: 1169800
 
-Q.1.
 In my original LTSA model, the main issue I faced was that I wanted the 
 get_new_patient method to be independant of any nurses. I could make it so that
 nurse.0.get_new_patient would occur, and then any nurse could assign themselves
@@ -22,6 +21,17 @@ Orderlies, which ends up in a situation wherein multiple patients are waiting to
 enter a room, but that room can not be freed due to no orderlies being available
 to move the patient to the next room.
 
-Q.2.
-I have identified the deadlock pattern and resolved it in the modified model. My 
-first instinct was to use 
+I have identified the processes that result in a deadlock and resolved it in the 
+modified model. My first instinct was to use monitors, but I realised I just had 
+to add an apply process before trying to move to the next room. So, the deadlock 
+was resolved simply by adding 3 processes. There are no trade-offs in my 
+implementation as I do not consider an extra process a hit to the performance 
+of my model in order to remove a deadlock. 
+
+I believe I had resolved the deadlock issue in my Java implementation. My 
+implementation used movingFrom() and movingTo() as synchronized methods that 
+would wait() if the next room was occupied. When notified, one of the move 
+functions would recruit orderlies (recruit and release were synchronized) and 
+finish moving the patient to the next room. There would be no reason for a 
+deadlock to ever occur due to these functions being synchronized, though that is
+a tradeoff probably no real Hospital would be willing to make.
