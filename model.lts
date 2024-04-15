@@ -1,3 +1,6 @@
+// Name: Sameer Sikka
+// ID: 1169800
+
 // First, declare constants
 	const N_Nurses = 3
 	const N_Patients = N_Nurses + 1
