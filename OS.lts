@@ -1,0 +1,23 @@
+const Nuser = 2
+const Nsystem = 2
+
+set Actions = {systemAcquire, systemRelease, userAcquire, userRelease}
+
+USER = (userAcquire -> userConsole -> userRelease -> USER) + Actions. 
+SYSTEM = (systemAcquire -> systemConsole -> systemRelease -> SYSTEM) + Actions.
+
+CONSOLE = CONSOLE[0],
+CONSOLE[i:0..1] = (
+	when (i<1) systemAcquire  -> CONSOLE[i+1]|
+	when (i>0) systemRelease -> CONSOLE[i-1] |
+	when (i<1) userAcquire -> CONSOLE[i+1] | 
+	when (i>0) userRelease -> CONSOLE[i-1]
+).
+
+||OS = (
+	user[1..Nuser]:USER ||
+	system[1..Nsystem]:SYSTEM ||
+	{user[1..Nuser], system[1..Nsystem]}::CONSOLE
+).
+
+||OS_PROCESS = OS << {system[1..Nsystem].systemAcquire}.
